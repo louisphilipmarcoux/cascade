@@ -1,0 +1,22 @@
+[package]
+name = "strategies"
+description = "Reference strategies: naive MM, Avellaneda-Stoikov, OU pairs, Almgren-Chriss execution"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+sim-core = { workspace = true }
+backtester = { workspace = true }
+serde = { workspace = true }
+libm = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,30 @@
+[package]
+name = "sim-core"
+description = "Deterministic substrate for quant-sim: fixed-point market types, virtual time, event vocabulary, seeded RNG streams"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+blake3 = { workspace = true }
+bincode = { workspace = true }
+proptest = { workspace = true, optional = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+# Shared generators/invariant helpers used by proptest suites and Kani harnesses
+# in downstream crates.
+testkit = ["dep:proptest"]
+
+[lints]
+workspace = true

@@ -1,0 +1,25 @@
+[package]
+name = "market-sim"
+description = "Deterministic discrete-event market simulator: Hawkes/Poisson/replay order flow, latency and fault injection"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+sim-core = { workspace = true }
+matching-engine = { workspace = true }
+serde = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+libm = { workspace = true }
+csv = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

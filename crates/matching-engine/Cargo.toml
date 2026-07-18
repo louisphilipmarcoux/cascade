@@ -1,0 +1,26 @@
+[package]
+name = "matching-engine"
+description = "Price-time-priority limit order book with property-tested and Kani-proved invariants"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+sim-core = { workspace = true }
+serde = { workspace = true }
+slab = { workspace = true }
+rustc-hash = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+sim-core = { workspace = true, features = ["testkit"] }
+proptest = { workspace = true }
+
+[features]
+testkit = ["sim-core/testkit"]
+
+[lints]
+workspace = true
