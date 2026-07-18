@@ -1,0 +1,23 @@
+# Rust
+/target/
+# Run outputs
+/runs/
+/artifacts/
+# Data: payloads are never committed; manifests, instrument metadata and small
+# fixtures are. See docs/interchange.md.
+/data/*
+!/data/manifest.toml
+!/data/instruments.toml
+!/data/fixtures/
+# Python (research/)
+research/.venv/
+__pycache__/
+.ipynb_checkpoints/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
