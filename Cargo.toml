@@ -1,0 +1,87 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/sim-core",
+    "crates/matching-engine",
+    "crates/market-sim",
+    "crates/backtester",
+    "crates/strategies",
+    "crates/cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/louisphilipmarcoux/cascade"
+authors = ["Louis-Philip Marcoux"]
+
+[workspace.dependencies]
+# Internal crates
+sim-core = { path = "crates/sim-core" }
+matching-engine = { path = "crates/matching-engine" }
+market-sim = { path = "crates/market-sim" }
+backtester = { path = "crates/backtester" }
+strategies = { path = "crates/strategies" }
+
+# External
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+bincode = { version = "2", features = ["serde", "derive"] }
+clap = { version = "4", features = ["derive"] }
+rand = "0.9"
+rand_chacha = "0.9"
+rand_distr = "0.5"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+comfy-table = "7"
+hdrhistogram = "7"
+slab = "0.4"
+rustc-hash = "2"
+blake3 = "1"
+csv = "1"
+humantime = "2"
+humantime-serde = "1"
+libm = "0.2"
+proptest = "1"
+criterion = "0.7"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Pedantic allowances that fight fixed-point / quant code ergonomics; every
+# other pedantic lint is enforced (CI runs clippy with -D warnings).
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+
+# Honest arithmetic: overflow checks stay ON in release builds. The cost is
+# measured (not guessed) via the `bench-unchecked` profile below.
+[profile.release]
+overflow-checks = true
+debug = true
+lto = "thin"
+
+[profile.bench-unchecked]
+inherits = "release"
+overflow-checks = false
+
+# proptest is intolerable at opt-level 0.
+[profile.test]
+opt-level = 1
+
+[profile.bench]
+debug = true
