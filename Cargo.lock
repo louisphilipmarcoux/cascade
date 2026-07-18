@@ -452,6 +452,7 @@ dependencies = [
 name = "matching-engine"
 version = "0.1.0"
 dependencies = [
+ "matching-engine",
  "proptest",
  "rustc-hash",
  "serde",

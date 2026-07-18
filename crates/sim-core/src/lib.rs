@@ -16,6 +16,7 @@ pub mod error;
 pub mod events;
 pub mod ids;
 pub mod instrument;
+pub mod ops;
 pub mod order;
 pub mod price;
 pub mod rng;

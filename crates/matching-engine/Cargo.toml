@@ -16,6 +16,8 @@ rustc-hash = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+# Self-dependency turns on `testkit` for this crate's own integration tests.
+matching-engine = { path = ".", features = ["testkit"] }
 sim-core = { workspace = true, features = ["testkit"] }
 proptest = { workspace = true }
 
