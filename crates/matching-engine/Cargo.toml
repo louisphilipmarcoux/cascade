@@ -1,6 +1,8 @@
 [package]
 name = "matching-engine"
 description = "Price-time-priority limit order book with property-tested and Kani-proved invariants"
+# benches/workload.rs is a shared module, not a bench target.
+autobenches = false
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -17,9 +19,20 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 # Self-dependency turns on `testkit` for this crate's own integration tests.
-matching-engine = { path = ".", features = ["testkit"] }
+matching-engine = { path = ".", version = "0.1.0", features = ["testkit"] }
 sim-core = { workspace = true, features = ["testkit"] }
 proptest = { workspace = true }
+criterion = { workspace = true }
+hdrhistogram = { workspace = true }
+rand = { workspace = true }
+
+[[bench]]
+name = "throughput"
+harness = false
+
+[[bench]]
+name = "latency"
+harness = false
 
 [features]
 testkit = ["sim-core/testkit"]
