@@ -14,6 +14,7 @@ matching-engine = { workspace = true }
 market-sim = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+libm = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
