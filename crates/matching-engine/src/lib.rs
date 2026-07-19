@@ -14,8 +14,11 @@
 pub mod book;
 pub mod engine;
 
-#[cfg(any(test, feature = "testkit"))]
+#[cfg(any(test, kani, feature = "testkit"))]
 pub mod testkit;
 
-pub use book::{Book, BookError, BookSnapshot, RestingOrder, btree::BTreeBook};
+#[cfg(kani)]
+mod verify;
+
+pub use book::{Book, BookError, BookSnapshot, RestingOrder, array::ArrayBook, btree::BTreeBook};
 pub use engine::{EngineConfig, MatchingEngine, SelfMatchPolicy};

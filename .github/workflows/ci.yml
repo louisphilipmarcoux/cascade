@@ -32,6 +32,17 @@ jobs:
         with:
           command: check advisories licenses sources bans
 
+  kani:
+    name: formal verification (kani)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Kani proofs (matching-engine K1-K6)
+        uses: model-checking/kani-github-action@v1.1
+        with:
+          args: -p matching-engine
+
   test:
     name: test (${{ matrix.os }})
     strategy:

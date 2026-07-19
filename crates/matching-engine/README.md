@@ -41,16 +41,16 @@ level.
 
 | # | Invariant | proptest / golden | Kani |
 |---|-----------|-------------------|------|
-| P1 | Sides strictly sorted, no empty levels | `check_invariants` after every op | M2 |
-| P2 | Book never crossed at rest | oracle + `check_invariants` | K2 (M2) |
-| P3 | Level totals == Σ member remainings | `check_invariants` | M2 |
+| P1 | Sides strictly sorted, no empty levels | `check_invariants` after every op | K2 (via check) |
+| P2 | Book never crossed at rest | oracle + `check_invariants` | K2 |
+| P3 | Level totals == Σ member remainings | `check_invariants` | K2 (via check) |
 | P4 | Slab/index/list mutual consistency | `check_invariants` | — |
-| P5 | Volume conservation (per order + global) | oracle end-of-run ledger | K1 (M2) |
-| P6 | No phantom fills | oracle per-fill | K3 (M2) |
+| P5 | Volume conservation (per order + global) | oracle end-of-run ledger | K1 |
+| P6 | No phantom fills | oracle per-fill | K3 (implicit: Kani overflow/panic checks) |
 | P7 | Fill at maker price within taker limit | oracle per-fill | — |
 | P8 | Price-time priority honored | oracle per-fill (best level + front) | — |
-| P9 | No zero/negative quantities | `check_invariants` + oracle | K3 (M2) |
-| P10 | IOC/Market never rest; FOK atomic | oracle + `fok_kills_atomically…` | K4 (M2) |
+| P9 | No zero/negative quantities | `check_invariants` + oracle | K3 (implicit: Kani overflow/panic checks) |
+| P10 | IOC/Market never rest; FOK atomic | oracle + `fok_kills_atomically…` | K4 |
 | P11 | Modify priority rules | oracle + golden modify tests | — |
 | P12 | No self-fills under STP ≠ Allow | oracle per-fill | — |
 | P13 | Event log losslessly rebuilds the book | snapshot ≡ event mirror, every op | — |

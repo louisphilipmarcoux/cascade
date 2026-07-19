@@ -9,6 +9,7 @@
 //!   Kani can exhaustively check; differential tests pin it to `BTreeBook`,
 //!   which is how proof confidence transfers to the production structure.
 
+pub mod array;
 pub mod btree;
 
 use serde::{Deserialize, Serialize};
