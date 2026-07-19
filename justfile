@@ -44,9 +44,13 @@ research-sync:
 research-test:
     cd research && uv run ruff check && uv run pytest -m "not slow and not network"
 
-# Deterministic demo: run twice, verify identical event-stream hashes.
+# Deterministic demo: run the scenario; re-run with --verify-hash to prove
+# byte-identical replay.
 demo:
-    cargo run --release -p quant-sim -- run scenarios/hawkes_demo.toml --seed 42
+    cargo run --release -p quant-sim -- run scenarios/poisson_mm_demo.toml
+
+study:
+    cargo run --release -p quant-sim -- run scenarios/naive_mm_spread_study.toml
 
 # Local aggregate gate, mirrors CI.
 ci: lint test doc

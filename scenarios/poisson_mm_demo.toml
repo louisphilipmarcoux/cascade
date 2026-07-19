@@ -1,0 +1,61 @@
+# Demo: Poisson background flow + a latency-honest naive market maker.
+# Run:            quant-sim run scenarios/poisson_mm_demo.toml --out runs/demo
+# Determinism:    run twice; the printed event-stream hash is identical.
+#                 quant-sim run scenarios/poisson_mm_demo.toml --verify-hash <hex>
+
+[meta]
+name = "poisson-mm-demo"
+description = "Zero-intelligence Poisson flow vs the naive symmetric market maker"
+
+[run]
+seed = 42
+t_end = "10m"
+equity_sample = "1s"
+capital_base = "1000000"
+
+[[instrument]]
+symbol = "SYNTH"
+tick_size = "0.01"
+lot_size = "1.0"
+
+[engine]
+self_match = "cancel_resting"
+max_order_qty = 1000000
+
+[[flow]]
+kind = "poisson"
+symbol = "SYNTH"
+owner = 0
+
+[flow.poisson]
+limit_rate = 40.0
+market_rate = 4.0
+cancel_rate = 12.0
+initial_mid_ticks = 10000
+
+[[strategy]]
+kind = "naive_mm"
+name = "naive_mm"
+owner = 1
+
+[strategy.params]
+symbol_index = 0
+half_spread_ticks = 2
+size_lots = 5
+requote_ms = 250
+requote_move_ticks = 2
+inventory_cap_lots = 50
+
+[strategy.order_latency]
+kind = "log_normal"
+median_ns = 200000
+sigma = 0.4
+min_ns = 20000
+
+[strategy.md_latency]
+kind = "constant"
+nanos = 50000
+
+[fees]
+maker_bps = 1.0
+taker_bps = 5.0
