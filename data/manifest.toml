@@ -1,0 +1,15 @@
+[[archive]]
+url = "https://data.binance.vision/data/futures/um/daily/aggTrades/BTCUSDT/BTCUSDT-aggTrades-2024-01-07.zip"
+path = "futures/um/daily/aggTrades/BTCUSDT/BTCUSDT-aggTrades-2024-01-07.zip"
+sha256 = "a326f1f0c4833b35c43ffd98fbbdc2d0779612044c2b05278060a8e39ed640ad"
+size_bytes = 10348979
+binance_checksum_verified = true
+downloaded_at = "2026-07-19T01:39:07+00:00"
+
+[[archive]]
+url = "https://data.binance.vision/data/futures/um/daily/bookTicker/BTCUSDT/BTCUSDT-bookTicker-2024-01-07.zip"
+path = "futures/um/daily/bookTicker/BTCUSDT/BTCUSDT-bookTicker-2024-01-07.zip"
+sha256 = "4536005a9fa212335a4ee6ea3687e2825fc899da880da46047e029914f26fd9c"
+size_bytes = 128614742
+binance_checksum_verified = true
+downloaded_at = "2026-07-19T01:39:37+00:00"

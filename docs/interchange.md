@@ -27,6 +27,14 @@ Source note: one Binance aggTrade = the fills of one taker order at one price
 ⇒ best free proxy for a market-order arrival. `is_buyer_maker = true` ⇒ the
 aggressor sold ⇒ `side = -1`.
 
+Coverage note (verified empirically by HTTP probing, 2026-07): um
+`bookTicker` daily archives exist from ~mid-2023 and were **discontinued
+between 2024-03 and 2024-04**; nothing newer is published. The pinned study
+window (January 2024, fixture day 2024-01-07) sits where aggTrades,
+bookTicker and bookDepth all coexist. For anything after the cutoff, the
+live recorder (`quantsim-data record`) is the only tick-level L1/L2 source —
+which is why it starts running at M7a.
+
 ### `quotes_l1` (Python → Rust; from Binance USD-M `bookTicker`)
 
 | column       | type | meaning                    |

@@ -1,0 +1,16 @@
+# Instrument metadata for normalized datasets (committed; see
+# docs/interchange.md). tick_size/lot_size are decimal strings parsed
+# exactly; the Rust loader validates that every fixture price/qty is exact
+# on these grids.
+
+schema_version = 1
+
+[[instrument]]
+symbol = "BTCUSDT"
+exchange = "binance-um"
+# Nominal exchange tick filter was 0.10 in the study window, but real prints
+# include 0.01-grid prices (liquidation/legacy-precision artifacts, measured
+# on the fixture day: 8/41473 prints). Replay uses the grid that fits ALL
+# prints exactly.
+tick_size = "0.01"
+lot_size = "0.001"

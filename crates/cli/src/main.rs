@@ -22,7 +22,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Run a scenario (or its study sweep when [study] is present).
+    /// Run a scenario (or its study sweep when `[study]` is present).
     Run {
         scenario: PathBuf,
         /// Override the scenario seed.

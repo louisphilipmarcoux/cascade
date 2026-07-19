@@ -32,6 +32,22 @@ jobs:
         with:
           command: check advisories licenses sources bans
 
+  research:
+    name: research (ruff + pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+        working-directory: research
+      - run: uv run ruff check && uv run ruff format --check
+        working-directory: research
+      - run: uv run pytest
+        working-directory: research
+
   kani:
     name: formal verification (kani)
     runs-on: ubuntu-latest
