@@ -1,6 +1,14 @@
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # bincode 2.x is "unmaintained" (team ceased development), not vulnerable.
+    # Our use is narrow: encoding our own plain structs for the hashed,
+    # BLAKE3-integrity-checked run log; no untrusted input is decoded.
+    # Seam: migrate the log codec (postcard/rkyv) with a log-format version
+    # bump — tracked for the hardening milestone.
+    { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained; usage is internal, integrity-checked, and pinned" },
+]
 
 [licenses]
 version = 2
@@ -19,6 +27,9 @@ allow = [
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Internal path dependencies carry no registry version; that is not the
+# supply-chain risk this lint exists for.
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"

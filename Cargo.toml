@@ -12,18 +12,20 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.96"
+# MSRV: bounded by Kani's bundled toolchain (currently 1.93-nightly); the dev
+# toolchain itself is pinned in rust-toolchain.toml.
+rust-version = "1.93"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/louisphilipmarcoux/cascade"
 authors = ["Louis-Philip Marcoux"]
 
 [workspace.dependencies]
-# Internal crates
-sim-core = { path = "crates/sim-core" }
-matching-engine = { path = "crates/matching-engine" }
-market-sim = { path = "crates/market-sim" }
-backtester = { path = "crates/backtester" }
-strategies = { path = "crates/strategies" }
+# Internal crates (versioned so cargo-deny resolves them cleanly)
+sim-core = { path = "crates/sim-core", version = "0.1.0" }
+matching-engine = { path = "crates/matching-engine", version = "0.1.0" }
+market-sim = { path = "crates/market-sim", version = "0.1.0" }
+backtester = { path = "crates/backtester", version = "0.1.0" }
+strategies = { path = "crates/strategies", version = "0.1.0" }
 
 # External
 serde = { version = "1", features = ["derive"] }
@@ -53,6 +55,8 @@ criterion = "0.7"
 unsafe_code = "forbid"
 missing_debug_implementations = "warn"
 rust_2018_idioms = { level = "warn", priority = -1 }
+# `kani` is set by cargo-kani when compiling proof harnesses.
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)"] }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
