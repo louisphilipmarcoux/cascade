@@ -12,10 +12,10 @@ authors.workspace = true
 sim-core = { workspace = true }
 matching-engine = { workspace = true }
 serde = { workspace = true }
+bincode = { workspace = true }
+blake3 = { workspace = true }
 rand = { workspace = true }
-rand_distr = { workspace = true }
 libm = { workspace = true }
-csv = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
