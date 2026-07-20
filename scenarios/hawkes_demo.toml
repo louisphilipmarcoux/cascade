@@ -1,0 +1,40 @@
+# Demo: self-exciting Hawkes order flow + the naive market maker.
+# Order arrivals cluster and decay (branching ratio ~0.55) instead of the
+# memoryless Poisson baseline — compare the two demos' stylized facts.
+
+[meta]
+name = "hawkes-mm-demo"
+description = "4-dim exponential Hawkes flow vs the naive symmetric market maker"
+
+[run]
+seed = 42
+t_end = "10m"
+equity_sample = "1s"
+capital_base = "1000000"
+
+[[instrument]]
+symbol = "SYNTH"
+tick_size = "0.01"
+lot_size = "1.0"
+
+[[flow]]
+kind = "hawkes"
+symbol = "SYNTH"
+owner = 0
+# Inline defaults (branching ~0.55); alternatively:
+# fit_file = "runs/fits/btcusdt-hawkes.toml"
+
+[[strategy]]
+kind = "naive_mm"
+name = "naive_mm"
+owner = 1
+
+[strategy.params]
+symbol_index = 0
+half_spread_ticks = 2
+size_lots = 5
+requote_ms = 250
+
+[fees]
+maker_bps = 1.0
+taker_bps = 5.0

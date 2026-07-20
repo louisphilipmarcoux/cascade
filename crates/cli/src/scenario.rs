@@ -8,7 +8,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use market_sim::LatencySpec;
+use market_sim::source::hawkes::HawkesFlowConfig;
 use market_sim::source::poisson::PoissonConfig;
+pub use market_sim::source::replay::ReplayConfig as ReplayCfg;
 use matching_engine::SelfMatchPolicy;
 use serde::Deserialize;
 use sim_core::instrument::parse_decimal_e8;
@@ -96,6 +98,29 @@ pub enum FlowCfg {
         /// Rates + placement model ([`PoissonConfig`] carries both).
         #[serde(default)]
         poisson: PoissonConfig,
+    },
+    Hawkes {
+        symbol: String,
+        owner: u16,
+        #[serde(default = "zero_latency")]
+        order_latency: LatencySpec,
+        /// Inline 4-dim flow parameters; alternatively `fit_file` overrides
+        /// the market buy/sell dims from a fitted 2-dim params TOML.
+        #[serde(default)]
+        hawkes: HawkesFlowConfig,
+        #[serde(default)]
+        fit_file: Option<String>,
+    },
+    Replay {
+        symbol: String,
+        /// Maker/frame owner; the aggressor uses `taker_owner`.
+        owner: u16,
+        taker_owner: u16,
+        /// Trades interchange CSV (docs/interchange.md), repo-relative or
+        /// absolute.
+        trades_csv: String,
+        #[serde(default)]
+        replay: ReplayCfg,
     },
 }
 
@@ -252,12 +277,29 @@ fn validate(s: &Scenario) -> Result<(), ScenarioError> {
     let known: Vec<&str> = s.instruments.iter().map(|i| i.symbol.as_str()).collect();
     let mut owners = std::collections::BTreeSet::new();
     for flow in &s.flows {
-        let FlowCfg::Poisson { symbol, owner, .. } = flow;
-        if !known.contains(&symbol.as_str()) {
+        let (symbol, flow_owners): (&str, Vec<u16>) = match flow {
+            FlowCfg::Poisson { symbol, owner, .. } | FlowCfg::Hawkes { symbol, owner, .. } => {
+                (symbol, vec![*owner])
+            }
+            FlowCfg::Replay {
+                symbol,
+                owner,
+                taker_owner,
+                ..
+            } => {
+                if owner == taker_owner {
+                    return invalid("replay owner and taker_owner must differ".into());
+                }
+                (symbol, vec![*owner, *taker_owner])
+            }
+        };
+        if !known.contains(&symbol) {
             return invalid(format!("flow references unknown symbol {symbol:?}"));
         }
-        if !owners.insert(*owner) {
-            return invalid(format!("owner {owner} used twice"));
+        for owner in flow_owners {
+            if !owners.insert(owner) {
+                return invalid(format!("owner {owner} used twice"));
+            }
         }
     }
     let mut names = std::collections::BTreeSet::new();

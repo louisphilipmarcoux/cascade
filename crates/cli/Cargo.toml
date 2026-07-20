@@ -28,6 +28,7 @@ tracing-subscriber = { workspace = true }
 blake3 = { workspace = true }
 humantime-serde = { workspace = true }
 libm = { workspace = true }
+csv = { workspace = true }
 thiserror = { workspace = true }
 
 [lints]

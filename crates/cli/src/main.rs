@@ -4,6 +4,7 @@
 //! stderr — pipelines stay clean.
 
 mod export;
+mod fit;
 mod run;
 mod scenario;
 mod table;
@@ -49,6 +50,27 @@ enum Command {
         #[arg(long, value_enum, default_value = "csv")]
         format: export::EventFormat,
     },
+    /// Fit models from interchange data.
+    Fit {
+        #[command(subcommand)]
+        command: FitCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum FitCommand {
+    /// 2-dim (buy/sell) exponential Hawkes MLE from a trades CSV.
+    Hawkes {
+        trades_csv: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, default_value = "BTCUSDT")]
+        symbol: String,
+        #[arg(long, default_value = "binance-um")]
+        exchange: String,
+    },
+    /// Ornstein-Uhlenbeck fit from a `(ts_ns, value)` CSV; JSON on stdout.
+    Ou { series_csv: PathBuf },
 }
 
 #[derive(Debug, Subcommand)]
@@ -79,6 +101,15 @@ fn main() -> ExitCode {
         Command::ExportEvents { run_dir, format } => {
             export::export(&run_dir, format).map_err(|e| e.to_string())
         }
+        Command::Fit { command } => match command {
+            FitCommand::Hawkes {
+                trades_csv,
+                out,
+                symbol,
+                exchange,
+            } => fit::hawkes(&trades_csv, &out, &symbol, &exchange).map_err(|e| e.to_string()),
+            FitCommand::Ou { series_csv } => fit::ou(&series_csv).map_err(|e| e.to_string()),
+        },
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

@@ -1,0 +1,43 @@
+# Demo: historical replay of the committed fixture hour (BTCUSDT um,
+# 2024-01-07 00:00-01:00 UTC) with the naive MM trading against the frame.
+# The replayed fill tape reproduces the historical trades exactly (tested);
+# strategy fills against the synthetic frame are optimistic by construction
+# (see the replay module docs — Stage 3 adds queue-honest historical mode).
+
+[meta]
+name = "replay-fixture-demo"
+description = "Exact tape replay of the fixture hour + naive MM"
+
+[run]
+seed = 42
+t_end = "62m"
+equity_sample = "1s"
+capital_base = "1000000"
+
+[[instrument]]
+symbol = "BTCUSDT"
+tick_size = "0.01"
+lot_size = "0.001"
+
+[[flow]]
+kind = "replay"
+symbol = "BTCUSDT"
+owner = 0
+taker_owner = 1
+trades_csv = "data/fixtures/binance-um/trades/BTCUSDT-2024-01-07-h00.csv"
+
+[[strategy]]
+kind = "naive_mm"
+name = "naive_mm"
+owner = 2
+
+[strategy.params]
+symbol_index = 0
+half_spread_ticks = 3
+size_lots = 10
+requote_ms = 500
+inventory_cap_lots = 500
+
+[fees]
+maker_bps = 1.0
+taker_bps = 5.0

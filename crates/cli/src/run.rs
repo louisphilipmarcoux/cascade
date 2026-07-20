@@ -4,8 +4,11 @@ use std::path::{Path, PathBuf};
 
 use backtester::strategy::StrategyActor;
 use backtester::{ReportSpec, RunReport, StudyReport, build_report, build_study};
+use market_sim::data::read_trades_csv;
 use market_sim::log::{LogHeader, write_log};
+use market_sim::source::hawkes::HawkesSource;
 use market_sim::source::poisson::PoissonSource;
+use market_sim::source::replay::ReplaySource;
 use market_sim::{SimConfig, Simulation};
 use sim_core::{OwnerId, SimDuration, SimTime};
 use strategies::NaiveMm;
@@ -26,6 +29,91 @@ pub enum RunError {
     HashMismatch { expected: String, actual: String },
 }
 
+/// Wire one flow configuration into the simulation.
+fn add_flow(sim: &mut Simulation, loaded: &LoadedScenario, flow: &FlowCfg) {
+    match flow {
+        FlowCfg::Poisson {
+            symbol,
+            owner,
+            order_latency,
+            poisson,
+        } => {
+            let symbol_id = loaded.symbols[symbol];
+            sim.add_source(
+                symbol_id,
+                OwnerId::new(*owner),
+                Box::new(PoissonSource::new(
+                    *poisson,
+                    symbol_id,
+                    OwnerId::new(*owner),
+                )),
+                order_latency,
+            );
+        }
+        FlowCfg::Hawkes {
+            symbol,
+            owner,
+            order_latency,
+            hawkes,
+            fit_file,
+        } => {
+            let symbol_id = loaded.symbols[symbol];
+            let mut config = hawkes.clone();
+            if let Some(path) = fit_file {
+                // Override the market buy/sell dims from a fitted 2-dim
+                // params artifact (docs/interchange.md).
+                let params = market_sim::hawkes::read_params(std::path::Path::new(path))
+                    .unwrap_or_else(|e| panic!("fit_file {path}: {e}"));
+                config.mu[0] = params.baseline.mu[0];
+                config.mu[1] = params.baseline.mu[1];
+                config.beta = params.kernel.beta;
+                for (row, fitted) in config.alpha.iter_mut().zip(&params.kernel.alpha).take(2) {
+                    for (a, f) in row.iter_mut().zip(fitted).take(2) {
+                        *a = *f;
+                    }
+                }
+            }
+            let source = HawkesSource::new(config, symbol_id, OwnerId::new(*owner))
+                .unwrap_or_else(|e| panic!("hawkes flow: {e}"));
+            sim.add_source(
+                symbol_id,
+                OwnerId::new(*owner),
+                Box::new(source),
+                order_latency,
+            );
+        }
+        FlowCfg::Replay {
+            symbol,
+            owner,
+            taker_owner,
+            trades_csv,
+            replay,
+        } => {
+            let symbol_id = loaded.symbols[symbol];
+            let rows = read_trades_csv(std::path::Path::new(trades_csv))
+                .unwrap_or_else(|e| panic!("trades_csv {trades_csv}: {e}"));
+            let instrument = &loaded.instruments[&symbol_id];
+            let source = ReplaySource::new(
+                &rows,
+                instrument,
+                *replay,
+                symbol_id,
+                OwnerId::new(*owner),
+                OwnerId::new(*taker_owner),
+                SimDuration::from_secs(1),
+            )
+            .unwrap_or_else(|e| panic!("replay flow: {e}"));
+            // Replay requires a zero-latency link (tape order is sacred).
+            sim.add_source(
+                symbol_id,
+                OwnerId::new(*owner),
+                Box::new(source),
+                &market_sim::LatencySpec::Zero,
+            );
+        }
+    }
+}
+
 /// Build and run one simulation from a (possibly sweep-modified) scenario.
 fn run_once(loaded: &LoadedScenario, scenario: &Scenario, seed: u64) -> (Simulation, RunReport) {
     let mut sim = Simulation::new(SimConfig {
@@ -38,23 +126,7 @@ fn run_once(loaded: &LoadedScenario, scenario: &Scenario, seed: u64) -> (Simulat
         sim.add_engine(symbol_id, loaded.engine_config());
     }
     for flow in &scenario.flows {
-        let FlowCfg::Poisson {
-            symbol,
-            owner,
-            order_latency,
-            poisson,
-        } = flow;
-        let symbol_id = loaded.symbols[symbol];
-        sim.add_source(
-            symbol_id,
-            OwnerId::new(*owner),
-            Box::new(PoissonSource::new(
-                *poisson,
-                symbol_id,
-                OwnerId::new(*owner),
-            )),
-            order_latency,
-        );
+        add_flow(&mut sim, loaded, flow);
     }
     let mut tracked = Vec::new();
     for strategy in &scenario.strategies {

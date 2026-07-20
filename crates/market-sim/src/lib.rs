@@ -12,7 +12,9 @@
 //! - [`log`]: integrity-checked binary event-log files.
 
 pub mod actor;
+pub mod data;
 pub mod des;
+pub mod hawkes;
 pub mod latency;
 pub mod log;
 pub mod projection;

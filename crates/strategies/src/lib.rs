@@ -6,6 +6,8 @@
 //!
 //! Strategy math is `f64`; conversion to ticks/lots happens at intent time.
 
+pub mod estimators;
 pub mod naive_mm;
 
+pub use estimators::{EwmaVol, OuFit, fit_ou};
 pub use naive_mm::{NaiveMm, NaiveMmConfig};

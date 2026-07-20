@@ -6,7 +6,9 @@
 //! land and how big they are) so that Poisson, Hawkes and agent-based flows
 //! differ only in the part that matters.
 
+pub mod hawkes;
 pub mod poisson;
+pub mod replay;
 
 use rand::Rng as _;
 use serde::{Deserialize, Serialize};
@@ -165,6 +167,12 @@ impl OwnOrders {
         } else {
             self.resting.iter().nth(idx % self.resting.len()).copied()
         }
+    }
+
+    /// All resting ids, in deterministic (ordered) sequence.
+    #[must_use]
+    pub fn ids(&self) -> Vec<OrderId> {
+        self.resting.iter().copied().collect()
     }
 }
 
