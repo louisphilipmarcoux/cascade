@@ -1,0 +1,76 @@
+name: heavy
+
+# Weekly deep verification: mutation testing and deep property-test runs.
+# Too slow for per-push CI; failures here mean a weak test, not a broken
+# build — triage by strengthening the test that let the mutant live.
+
+on:
+  schedule:
+    - cron: "0 3 * * 0" # Sundays 03:00 UTC
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutants:
+    name: cargo-mutants (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [matching-engine, backtester]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned toolchain
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants,cargo-nextest
+      - name: Mutation testing
+        run: >
+          cargo mutants --package ${{ matrix.package }}
+          --test-tool nextest --timeout-multiplier 3 --in-place
+          -- --profile ci
+      - name: Upload mutants report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-${{ matrix.package }}
+          path: mutants.out/
+          if-no-files-found: ignore
+
+  deep-proptest:
+    name: deep property tests (10k cases)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned toolchain
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - name: Deep proptest sweep
+        run: cargo nextest run --workspace --all-features --profile ci
+        env:
+          PROPTEST_CASES: "10000"
+
+  research-windows:
+    name: research suite on windows (weekly cross-check)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+        working-directory: research
+      - run: uv run ruff check
+        working-directory: research
+      - run: uv run pytest
+        working-directory: research

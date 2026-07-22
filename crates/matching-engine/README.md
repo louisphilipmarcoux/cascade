@@ -1,18 +1,23 @@
 # matching-engine
 
 Price-time-priority limit order book and matching engine. The matching
-algorithm is written once, generic over the `Book` trait; the production
-implementation is `BTreeBook`.
+algorithm is written once, generic over the `Book` trait, with three
+implementations: `BTreeBook` (production default), `LadderBook` (contiguous
+price-band layout; faster on dense near-touch flow — see the README
+benchmark table at the repo root), and `ArrayBook` (Kani-provable). All
+three are held observationally identical by the differential test.
 
 ## Design decisions (and rejected alternatives)
 
 - **`BTreeMap` price ladder + slab-backed intrusive FIFO levels + id index.**
   O(log P) to open a price level, O(1) enqueue, O(1) cancel/modify by id,
-  O(1) best-price, fully deterministic iteration, zero `unsafe`. A contiguous
-  price-band ladder (`Vec` with offset indexing) is implemented at M9 and
-  *benchmarked against* this book rather than assumed faster; a lock-free
-  variant is a named seam (Stage 7), deliberately built only after the safe
-  version is fully proven.
+  O(1) best-price, fully deterministic iteration, zero `unsafe`. The
+  contiguous price-band `LadderBook` (`Vec` with offset indexing, cached
+  best, amortized recentering) was *benchmarked against* this book rather
+  than assumed faster — measured outcome: ~12% higher throughput and lower
+  tail latency on dense near-touch flow, a slight loss on sparse sweepy
+  flow. A lock-free variant is a named seam (Stage 7), deliberately built
+  only after the safe version is fully proven.
 - **The engine's only output is the event stream.** L2 book deltas are a
   projection rebuilt from order lifecycle events; losslessness is enforced by
   P13 below, not by convention.
@@ -68,5 +73,5 @@ per normative rule, plus a committed BLAKE3 golden stream hash.
 
 ## Extension seams
 
-Price collars/halts; iceberg orders; the ladder book (M9 benchmark); the
-lock-free variant (Stage 7); full L2 delta replay (Stage 3).
+Price collars/halts; iceberg orders; the lock-free variant (Stage 7); full
+L2 delta replay (Stage 3).

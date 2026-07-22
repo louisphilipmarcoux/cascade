@@ -20,5 +20,8 @@ pub mod testkit;
 #[cfg(kani)]
 mod verify;
 
-pub use book::{Book, BookError, BookSnapshot, RestingOrder, array::ArrayBook, btree::BTreeBook};
+pub use book::{
+    Book, BookError, BookSnapshot, RestingOrder, array::ArrayBook, btree::BTreeBook,
+    ladder::LadderBook,
+};
 pub use engine::{EngineConfig, MatchingEngine, SelfMatchPolicy};

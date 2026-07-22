@@ -9,7 +9,7 @@
 mod workload;
 
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use matching_engine::{ArrayBook, EngineConfig, MatchingEngine};
+use matching_engine::{ArrayBook, EngineConfig, LadderBook, MatchingEngine};
 use sim_core::{EventRecord, EventSeq, EventSink, SimTime};
 use std::hint::black_box;
 use workload::{NEAR_TOUCH, SWEEPY, SYM, UNIFORM, WorkloadSpec, generate};
@@ -34,6 +34,21 @@ fn run_workload(c: &mut Criterion, name: &str, spec: &WorkloadSpec) {
     group.bench_function("btree", |b| {
         b.iter(|| {
             let mut engine = MatchingEngine::new_btree(SYM, EngineConfig::default());
+            let mut seq = EventSeq::new(0);
+            let mut sink = CountingSink(0);
+            for (i, request) in requests.iter().enumerate() {
+                let ts = SimTime::from_micros(i as u64);
+                engine
+                    .process(ts, &mut seq, &mut sink, *request)
+                    .expect("no corruption");
+            }
+            black_box(sink.0)
+        });
+    });
+
+    group.bench_function("ladder", |b| {
+        b.iter(|| {
+            let mut engine = MatchingEngine::new(SYM, EngineConfig::default(), LadderBook::new());
             let mut seq = EventSeq::new(0);
             let mut sink = CountingSink(0);
             for (i, request) in requests.iter().enumerate() {

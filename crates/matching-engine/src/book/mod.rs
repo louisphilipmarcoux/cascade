@@ -7,10 +7,13 @@
 //!   slab-backed intrusive FIFO levels, O(1) cancel via an id index);
 //! - `ArrayBook` (M2) — a tiny, capacity-bounded book over fixed arrays that
 //!   Kani can exhaustively check; differential tests pin it to `BTreeBook`,
-//!   which is how proof confidence transfers to the production structure.
+//!   which is how proof confidence transfers to the production structure;
+//! - [`ladder::LadderBook`] (M9) — a contiguous price-band layout for the
+//!   comparative benchmark story, differential-tested against `BTreeBook`.
 
 pub mod array;
 pub mod btree;
+pub mod ladder;
 
 use serde::{Deserialize, Serialize};
 use sim_core::{OrderId, OwnerId, Price, Qty, Side};

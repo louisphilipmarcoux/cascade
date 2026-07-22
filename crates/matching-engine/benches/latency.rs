@@ -10,7 +10,7 @@
 mod workload;
 
 use hdrhistogram::Histogram;
-use matching_engine::{EngineConfig, MatchingEngine};
+use matching_engine::{EngineConfig, LadderBook, MatchingEngine};
 use sim_core::{EventRecord, EventSeq, EventSink, SimTime};
 use std::hint::black_box;
 use workload::{NEAR_TOUCH, SWEEPY, SYM, UNIFORM, WorkloadSpec, generate};
@@ -24,12 +24,11 @@ impl EventSink for CountingSink {
     }
 }
 
-fn soak(name: &str, spec: &WorkloadSpec) {
+fn soak<B: matching_engine::Book>(name: &str, spec: &WorkloadSpec, mut engine: MatchingEngine<B>) {
     const WARMUP: usize = 200_000;
     const MEASURED: usize = 1_000_000;
 
     let requests = generate(spec, 42, WARMUP + MEASURED);
-    let mut engine = MatchingEngine::new_btree(SYM, EngineConfig::default());
     let mut seq = EventSeq::new(0);
     let mut sink = CountingSink(0);
     let mut histogram: Histogram<u64> =
@@ -98,7 +97,20 @@ fn main() {
         println!("latency soak smoke ok ({} events)", sink.0);
         return;
     }
-    soak("uniform", &UNIFORM);
-    soak("near_touch", &NEAR_TOUCH);
-    soak("sweepy", &SWEEPY);
+    for (name, spec) in [
+        ("uniform", &UNIFORM),
+        ("near_touch", &NEAR_TOUCH),
+        ("sweepy", &SWEEPY),
+    ] {
+        soak(
+            &format!("{name}/btree"),
+            spec,
+            MatchingEngine::new_btree(SYM, EngineConfig::default()),
+        );
+        soak(
+            &format!("{name}/ladder"),
+            spec,
+            MatchingEngine::new(SYM, EngineConfig::default(), LadderBook::new()),
+        );
+    }
 }
