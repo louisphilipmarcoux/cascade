@@ -47,6 +47,13 @@ jobs:
         working-directory: research
       - run: uv run pytest
         working-directory: research
+      - name: Notebook smoke (papermill on committed fixture, offline)
+        run: |
+          mkdir -p ../artifacts/notebooks
+          for nb in 01-stylized-facts 02-hawkes-fit 03-simulator-validation 04-hurst; do
+            uv run papermill "notebooks/$nb.ipynb" "../artifacts/notebooks/$nb-executed.ipynb"
+          done
+        working-directory: research
 
   kani:
     name: formal verification (kani)
