@@ -115,6 +115,9 @@ pub struct Simulation {
     /// Live order → owner, so ownerless records (rest/cancel/modify) can be
     /// routed to the source that created the order. Pruned on terminal events.
     id_owner: BTreeMap<sim_core::OrderId, OwnerId>,
+    /// Order → symbol, so a source driving several instruments routes each
+    /// cancel/modify to the right engine.
+    id_symbol: BTreeMap<sim_core::OrderId, SymbolId>,
     id_gen: IdGen,
     seq: EventSeq,
     pub log: RunLog,
@@ -132,6 +135,7 @@ impl Simulation {
             actors: Vec::new(),
             owner_to_source: BTreeMap::new(),
             id_owner: BTreeMap::new(),
+            id_symbol: BTreeMap::new(),
             id_gen: IdGen::new(),
             seq: EventSeq::new(0),
             log: RunLog::new(),
@@ -237,10 +241,23 @@ impl Simulation {
             Some((at, request)) => {
                 let delay = slot.order_latency.sample(&mut slot.rng);
                 let deliver_at = at.checked_add(delay).unwrap_or(at);
+                // Route by the request's *own* symbol (a source may drive
+                // several instruments — e.g. the cointegrated pair). Submits
+                // carry it directly; cancels/modifies resolve it from the
+                // id→symbol registry populated at submit time.
+                let target = match &request {
+                    Request::Submit(order) => {
+                        self.id_symbol.insert(order.id, order.symbol);
+                        order.symbol
+                    }
+                    Request::Cancel { id } | Request::Modify { id, .. } => {
+                        self.id_symbol.get(id).copied().unwrap_or(slot.symbol)
+                    }
+                };
                 self.scheduler.schedule(
                     deliver_at,
                     SimEvent::EngineRequest {
-                        symbol: slot.symbol,
+                        symbol: target,
                         request,
                     },
                 );

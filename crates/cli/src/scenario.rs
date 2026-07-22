@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use market_sim::LatencySpec;
+use market_sim::source::coint_pair::CointPairConfig;
 use market_sim::source::hawkes::HawkesFlowConfig;
 use market_sim::source::poisson::PoissonConfig;
 pub use market_sim::source::replay::ReplayConfig as ReplayCfg;
@@ -15,7 +16,9 @@ use matching_engine::SelfMatchPolicy;
 use serde::Deserialize;
 use sim_core::instrument::parse_decimal_e8;
 use sim_core::{Instrument, Qty, SymbolId};
-use strategies::NaiveMmConfig;
+use strategies::{
+    AlmgrenChrissParams, AvellanedaStoikovConfig, NaiveMmConfig, OuPairsConfig, TwapParams,
+};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -122,6 +125,12 @@ pub enum FlowCfg {
         #[serde(default)]
         replay: ReplayCfg,
     },
+    /// Synthetic cointegrated pair (two legs) for OU-pairs testing.
+    CointPair {
+        owner: u16,
+        #[serde(default)]
+        coint: CointPairConfig,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -137,20 +146,70 @@ pub enum StrategyCfg {
         #[serde(default)]
         params: NaiveMmConfig,
     },
+    AvellanedaStoikov {
+        name: String,
+        owner: u16,
+        #[serde(default = "default_order_latency")]
+        order_latency: LatencySpec,
+        #[serde(default = "default_md_latency")]
+        md_latency: LatencySpec,
+        #[serde(default)]
+        params: AvellanedaStoikovConfig,
+    },
+    OuPairs {
+        name: String,
+        owner: u16,
+        #[serde(default = "default_order_latency")]
+        order_latency: LatencySpec,
+        #[serde(default = "default_md_latency")]
+        md_latency: LatencySpec,
+        /// Subscribed symbols (both legs).
+        symbols: Vec<String>,
+        #[serde(default)]
+        params: OuPairsConfig,
+    },
+    AlmgrenChriss {
+        name: String,
+        owner: u16,
+        #[serde(default = "default_order_latency")]
+        order_latency: LatencySpec,
+        #[serde(default = "default_md_latency")]
+        md_latency: LatencySpec,
+        #[serde(default)]
+        params: AlmgrenChrissParams,
+    },
+    Twap {
+        name: String,
+        owner: u16,
+        #[serde(default = "default_order_latency")]
+        order_latency: LatencySpec,
+        #[serde(default = "default_md_latency")]
+        md_latency: LatencySpec,
+        #[serde(default)]
+        params: TwapParams,
+    },
 }
 
 impl StrategyCfg {
     #[must_use]
     pub fn name(&self) -> &str {
         match self {
-            Self::NaiveMm { name, .. } => name,
+            Self::NaiveMm { name, .. }
+            | Self::AvellanedaStoikov { name, .. }
+            | Self::OuPairs { name, .. }
+            | Self::AlmgrenChriss { name, .. }
+            | Self::Twap { name, .. } => name,
         }
     }
 
     #[must_use]
     pub const fn owner(&self) -> u16 {
         match self {
-            Self::NaiveMm { owner, .. } => *owner,
+            Self::NaiveMm { owner, .. }
+            | Self::AvellanedaStoikov { owner, .. }
+            | Self::OuPairs { owner, .. }
+            | Self::AlmgrenChriss { owner, .. }
+            | Self::Twap { owner, .. } => *owner,
         }
     }
 }
@@ -275,11 +334,13 @@ fn validate(s: &Scenario) -> Result<(), ScenarioError> {
         return invalid("at least one [[flow]] is required".into());
     }
     let known: Vec<&str> = s.instruments.iter().map(|i| i.symbol.as_str()).collect();
+    let n_symbols = u16::try_from(s.instruments.len()).unwrap_or(u16::MAX);
     let mut owners = std::collections::BTreeSet::new();
     for flow in &s.flows {
-        let (symbol, flow_owners): (&str, Vec<u16>) = match flow {
+        // Symbols referenced by name, plus owners consumed.
+        let (symbols, flow_owners): (Vec<&str>, Vec<u16>) = match flow {
             FlowCfg::Poisson { symbol, owner, .. } | FlowCfg::Hawkes { symbol, owner, .. } => {
-                (symbol, vec![*owner])
+                (vec![symbol.as_str()], vec![*owner])
             }
             FlowCfg::Replay {
                 symbol,
@@ -290,11 +351,23 @@ fn validate(s: &Scenario) -> Result<(), ScenarioError> {
                 if owner == taker_owner {
                     return invalid("replay owner and taker_owner must differ".into());
                 }
-                (symbol, vec![*owner, *taker_owner])
+                (vec![symbol.as_str()], vec![*owner, *taker_owner])
+            }
+            FlowCfg::CointPair { owner, coint } => {
+                // Legs are referenced by dense index; check they exist.
+                if coint.symbol_a >= n_symbols || coint.symbol_b >= n_symbols {
+                    return invalid("coint_pair symbol index out of range".into());
+                }
+                if coint.symbol_a == coint.symbol_b {
+                    return invalid("coint_pair legs must be distinct instruments".into());
+                }
+                (vec![], vec![*owner])
             }
         };
-        if !known.contains(&symbol) {
-            return invalid(format!("flow references unknown symbol {symbol:?}"));
+        for symbol in symbols {
+            if !known.contains(&symbol) {
+                return invalid(format!("flow references unknown symbol {symbol:?}"));
+            }
         }
         for owner in flow_owners {
             if !owners.insert(owner) {
@@ -328,6 +401,25 @@ fn validate(s: &Scenario) -> Result<(), ScenarioError> {
     Ok(())
 }
 
+/// Set one field on a serde params struct via a TOML value round-trip.
+fn set_param<T>(params: &mut T, param: &str, value: &toml::Value) -> Result<(), ScenarioError>
+where
+    T: serde::Serialize + serde::de::DeserializeOwned,
+{
+    let mut table =
+        toml::Value::try_from(&*params).map_err(|e| ScenarioError::Invalid(e.to_string()))?;
+    let Some(entry) = table.as_table_mut().and_then(|t| t.get_mut(param)) else {
+        return Err(ScenarioError::Invalid(format!(
+            "strategy has no parameter {param:?}"
+        )));
+    };
+    *entry = value.clone();
+    *params = table
+        .try_into()
+        .map_err(|e: toml::de::Error| ScenarioError::Invalid(e.to_string()))?;
+    Ok(())
+}
+
 /// Apply one sweep value to the named strategy's params (via TOML value
 /// round-trip so it generalizes to every strategy kind).
 pub fn apply_sweep(
@@ -340,22 +432,13 @@ pub fn apply_sweep(
         if strategy.name() != strategy_name {
             continue;
         }
-        match strategy {
-            StrategyCfg::NaiveMm { params, .. } => {
-                let mut table = toml::Value::try_from(*params)
-                    .map_err(|e| ScenarioError::Invalid(e.to_string()))?;
-                let Some(entry) = table.as_table_mut().and_then(|t| t.get_mut(param)) else {
-                    return Err(ScenarioError::Invalid(format!(
-                        "strategy {strategy_name:?} has no parameter {param:?}"
-                    )));
-                };
-                *entry = value.clone();
-                *params = table
-                    .try_into()
-                    .map_err(|e: toml::de::Error| ScenarioError::Invalid(e.to_string()))?;
-                return Ok(());
-            }
-        }
+        return match strategy {
+            StrategyCfg::NaiveMm { params, .. } => set_param(params, param, value),
+            StrategyCfg::AvellanedaStoikov { params, .. } => set_param(params, param, value),
+            StrategyCfg::OuPairs { params, .. } => set_param(params, param, value),
+            StrategyCfg::AlmgrenChriss { params, .. } => set_param(params, param, value),
+            StrategyCfg::Twap { params, .. } => set_param(params, param, value),
+        };
     }
     Err(ScenarioError::Invalid(format!(
         "study sweeps unknown strategy {strategy_name:?}"

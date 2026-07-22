@@ -1,0 +1,58 @@
+# OU pairs trading on a synthetic cointegrated pair. The CointPairSource
+# generates two legs sharing a common random-walk factor plus a
+# mean-reverting OU spread (hedge ratio 1.0) — genuinely cointegrated by
+# construction. The strategy fits the OU spread online (walk-forward) and
+# trades z-score entry/exit derived from the fitted stationary law.
+
+[meta]
+name = "ou-pairs-demo"
+description = "OU pairs trading on a synthetic cointegrated pair"
+
+[run]
+seed = 42
+t_end = "30m"
+equity_sample = "1s"
+capital_base = "1000000"
+
+[[instrument]]
+symbol = "PAIR-A"
+tick_size = "0.01"
+lot_size = "1.0"
+
+[[instrument]]
+symbol = "PAIR-B"
+tick_size = "0.01"
+lot_size = "1.0"
+
+[[flow]]
+kind = "coint_pair"
+owner = 0
+
+[flow.coint]
+symbol_a = 0
+symbol_b = 1
+hedge_ratio = 1.0
+step_ms = 100
+factor_vol = 0.0003
+spread_theta = 0.02
+spread_vol = 0.01
+initial_log_price = 9.21
+taker_lots = 50
+
+[[strategy]]
+kind = "ou_pairs"
+name = "ou_pairs"
+owner = 1
+symbols = ["PAIR-A", "PAIR-B"]
+
+[strategy.params]
+symbol_a = 0
+symbol_b = 1
+hedge_ratio = 1.0
+sample_ms = 1000
+window = 300
+refit_every = 120
+z_entry = 2.0
+z_exit = 0.5
+z_stop = 4.0
+size_a_lots = 10

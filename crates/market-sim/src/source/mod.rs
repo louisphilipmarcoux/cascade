@@ -6,6 +6,7 @@
 //! land and how big they are) so that Poisson, Hawkes and agent-based flows
 //! differ only in the part that matters.
 
+pub mod coint_pair;
 pub mod hawkes;
 pub mod poisson;
 pub mod replay;

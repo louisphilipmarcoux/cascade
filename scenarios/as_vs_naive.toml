@@ -1,0 +1,51 @@
+# The flagship comparison: Avellaneda-Stoikov vs the naive market maker,
+# same Hawkes flow, same seed, same frictions. A-S's inventory-aware quoting
+# has to beat "quote around mid" in PnL for its complexity to earn its keep.
+# Both quote the SAME instrument against the SAME background flow.
+
+[meta]
+name = "as-vs-naive"
+description = "Avellaneda-Stoikov vs naive MM under identical Hawkes flow and frictions"
+
+[run]
+seed = 42
+t_end = "10m"
+equity_sample = "1s"
+capital_base = "1000000"
+
+[[instrument]]
+symbol = "SYNTH"
+tick_size = "0.01"
+lot_size = "1.0"
+
+[[flow]]
+kind = "hawkes"
+symbol = "SYNTH"
+owner = 0
+
+[[strategy]]
+kind = "avellaneda_stoikov"
+name = "avellaneda_stoikov"
+owner = 1
+
+[strategy.params]
+symbol_index = 0
+gamma = 0.1
+sigma_lambda = 0.98
+horizon_secs = 600.0
+size_lots = 5
+requote_ms = 250
+inventory_cap_lots = 50
+liquidate_at_end = true
+
+[[strategy]]
+kind = "naive_mm"
+name = "naive_mm"
+owner = 2
+
+[strategy.params]
+symbol_index = 0
+half_spread_ticks = 2
+size_lots = 5
+requote_ms = 250
+inventory_cap_lots = 50

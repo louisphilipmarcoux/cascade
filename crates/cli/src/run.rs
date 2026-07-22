@@ -6,12 +6,13 @@ use backtester::strategy::StrategyActor;
 use backtester::{ReportSpec, RunReport, StudyReport, build_report, build_study};
 use market_sim::data::read_trades_csv;
 use market_sim::log::{LogHeader, write_log};
+use market_sim::source::coint_pair::CointPairSource;
 use market_sim::source::hawkes::HawkesSource;
 use market_sim::source::poisson::PoissonSource;
 use market_sim::source::replay::ReplaySource;
 use market_sim::{SimConfig, Simulation};
-use sim_core::{OwnerId, SimDuration, SimTime};
-use strategies::NaiveMm;
+use sim_core::{OwnerId, SimDuration, SimTime, SymbolId};
+use strategies::{AlmgrenChriss, AvellanedaStoikov, NaiveMm, OuPairs, Twap};
 
 use crate::scenario::{FlowCfg, LoadedScenario, Scenario, StrategyCfg, apply_sweep, load};
 
@@ -111,7 +112,105 @@ fn add_flow(sim: &mut Simulation, loaded: &LoadedScenario, flow: &FlowCfg) {
                 &market_sim::LatencySpec::Zero,
             );
         }
+        FlowCfg::CointPair { owner, coint } => {
+            let source = CointPairSource::new(*coint, OwnerId::new(*owner));
+            // The source drives both legs; register it under leg A's engine.
+            sim.add_source(
+                SymbolId::new(coint.symbol_a),
+                OwnerId::new(*owner),
+                Box::new(source),
+                &market_sim::LatencySpec::Zero,
+            );
+        }
     }
+}
+
+/// Wire one strategy into the simulation; returns its (name, owner) for
+/// report tracking.
+fn add_strategy(
+    sim: &mut Simulation,
+    loaded: &LoadedScenario,
+    strategy: &StrategyCfg,
+) -> (String, OwnerId) {
+    let owner_id = OwnerId::new(strategy.owner());
+    let name = strategy.name().to_string();
+    match strategy {
+        StrategyCfg::NaiveMm {
+            order_latency,
+            md_latency,
+            params,
+            ..
+        } => {
+            sim.add_actor(
+                owner_id,
+                [SymbolId::new(params.symbol_index)],
+                Box::new(StrategyActor::new(Box::new(NaiveMm::new(*params)))),
+                order_latency,
+                md_latency,
+            );
+        }
+        StrategyCfg::AvellanedaStoikov {
+            order_latency,
+            md_latency,
+            params,
+            ..
+        } => {
+            sim.add_actor(
+                owner_id,
+                [SymbolId::new(params.symbol_index)],
+                Box::new(StrategyActor::new(Box::new(AvellanedaStoikov::new(
+                    *params,
+                )))),
+                order_latency,
+                md_latency,
+            );
+        }
+        StrategyCfg::OuPairs {
+            order_latency,
+            md_latency,
+            symbols,
+            params,
+            ..
+        } => {
+            let subs: Vec<SymbolId> = symbols.iter().map(|s| loaded.symbols[s]).collect();
+            sim.add_actor(
+                owner_id,
+                subs,
+                Box::new(StrategyActor::new(Box::new(OuPairs::new(*params)))),
+                order_latency,
+                md_latency,
+            );
+        }
+        StrategyCfg::AlmgrenChriss {
+            order_latency,
+            md_latency,
+            params,
+            ..
+        } => {
+            sim.add_actor(
+                owner_id,
+                [SymbolId::new(params.exec.symbol_index)],
+                Box::new(StrategyActor::new(Box::new(AlmgrenChriss::new(*params)))),
+                order_latency,
+                md_latency,
+            );
+        }
+        StrategyCfg::Twap {
+            order_latency,
+            md_latency,
+            params,
+            ..
+        } => {
+            sim.add_actor(
+                owner_id,
+                [SymbolId::new(params.exec.symbol_index)],
+                Box::new(StrategyActor::new(Box::new(Twap::new(*params)))),
+                order_latency,
+                md_latency,
+            );
+        }
+    }
+    (name, owner_id)
 }
 
 /// Build and run one simulation from a (possibly sweep-modified) scenario.
@@ -130,26 +229,8 @@ fn run_once(loaded: &LoadedScenario, scenario: &Scenario, seed: u64) -> (Simulat
     }
     let mut tracked = Vec::new();
     for strategy in &scenario.strategies {
-        match strategy {
-            StrategyCfg::NaiveMm {
-                name,
-                owner,
-                order_latency,
-                md_latency,
-                params,
-            } => {
-                let owner_id = OwnerId::new(*owner);
-                let symbol_id = sim_core::SymbolId::new(params.symbol_index);
-                sim.add_actor(
-                    owner_id,
-                    [symbol_id],
-                    Box::new(StrategyActor::new(Box::new(NaiveMm::new(*params)))),
-                    order_latency,
-                    md_latency,
-                );
-                tracked.push((name.clone(), owner_id));
-            }
-        }
+        let (name, owner_id) = add_strategy(&mut sim, loaded, strategy);
+        tracked.push((name, owner_id));
     }
     sim.run();
 

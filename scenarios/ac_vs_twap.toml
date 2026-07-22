@@ -1,0 +1,53 @@
+# Almgren-Chriss optimal execution vs TWAP: liquidate the same position over
+# the same horizon against the same Hawkes-driven book. A-C's risk-aware
+# front-loading trades market impact against price risk; the comparison is
+# implementation shortfall under identical frictions and seed.
+
+[meta]
+name = "ac-vs-twap"
+description = "Almgren-Chriss vs TWAP liquidation, identical flow and horizon"
+
+[run]
+seed = 42
+t_end = "6m"
+equity_sample = "1s"
+capital_base = "1000000"
+
+[[instrument]]
+symbol = "SYNTH"
+tick_size = "0.01"
+lot_size = "1.0"
+
+[[flow]]
+kind = "hawkes"
+symbol = "SYNTH"
+owner = 0
+
+[[strategy]]
+kind = "almgren_chriss"
+name = "almgren_chriss"
+owner = 1
+
+[strategy.params]
+symbol_index = 0
+target_lots = 1000
+slices = 20
+horizon_secs = 240.0
+warmup_secs = 30.0
+# Tuned for moderate front-loading (κT ≈ 4): risk-aware but not a delta.
+risk_aversion = 0.000000002
+eta = 0.0001
+gamma_permanent = 0.000001
+sigma = 5.0
+
+[[strategy]]
+kind = "twap"
+name = "twap"
+owner = 2
+
+[strategy.params]
+symbol_index = 0
+target_lots = 1000
+slices = 20
+horizon_secs = 240.0
+warmup_secs = 30.0
