@@ -12,7 +12,7 @@ use sim_core::rng::Rng;
 pub struct HawkesProcess {
     /// Baseline intensities per dimension (events/sec).
     mu: Vec<f64>,
-    /// α[m][n]: jump added to dim m's intensity by an event of dim n (1/sec).
+    /// `alpha[m][n]`: jump added to dim m's intensity by an event of dim n (1/sec).
     alpha: Vec<Vec<f64>>,
     /// Shared exponential decay rate (1/sec).
     beta: f64,

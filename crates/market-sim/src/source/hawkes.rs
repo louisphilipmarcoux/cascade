@@ -25,7 +25,7 @@ pub const DIMS: [&str; 4] = ["market_buy", "market_sell", "limit_buy", "limit_se
 pub struct HawkesFlowConfig {
     /// Baselines per dim (events/sec), order per [`DIMS`].
     pub mu: Vec<f64>,
-    /// Excitation matrix α[m][n] (1/sec).
+    /// Excitation matrix `alpha[m][n]` (1/sec).
     pub alpha: Vec<Vec<f64>>,
     /// Shared decay (1/sec).
     pub beta: f64,

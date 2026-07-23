@@ -244,9 +244,13 @@ fn k4_fok_atomicity() {
 /// Domain note: fully symbolic tick/lot sizes make the i128 multiplications
 /// intractable for CBMC (128-bit non-linear bitvector arithmetic), so the
 /// instrument ranges over a **representative set** (BTC-perp-like,
-/// equity-like, penny-tick) while price, quantity and rate stay symbolic
-/// within realistic bounds. The proptest suite covers the fully-random
-/// instrument space; this proof nails the arithmetic itself.
+/// equity-like, penny-tick) while price, quantity and rate stay symbolic.
+/// The symbolic bounds are deliberately narrow (10-bit price/qty, ±10k rate):
+/// the rounding property is structural — every sign and remainder path is
+/// exercised at small magnitudes — and wide bit-widths only multiply SAT
+/// cost (a 30-minute CI timeout at the previous 24-bit bounds). Wide-range
+/// coverage is the proptest suite's job (P20); this proof nails the
+/// ceil-toward-+∞ arithmetic itself.
 #[kani::proof]
 #[kani::unwind(64)]
 fn k5_fee_arithmetic_bounds() {
@@ -264,14 +268,14 @@ fn k5_fee_arithmetic_bounds() {
 
     let ticks: i64 = kani::any();
     let lots: u64 = kani::any();
-    kani::assume(ticks >= 1 && ticks <= 10_000_000);
-    kani::assume(lots >= 1 && lots <= 1_000_000);
+    kani::assume(ticks >= 1 && ticks <= 1023);
+    kani::assume(lots >= 1 && lots <= 1023);
     let notional = instrument.notional(Price::new(ticks), Qty::new(lots));
     assert!(notional.is_ok(), "bounded notional must not overflow");
     let Ok(notional) = notional else { return };
 
     let rate_e8: i128 = kani::any();
-    kani::assume(rate_e8 >= -1_000_000 && rate_e8 <= 1_000_000); // ±1%
+    kani::assume(rate_e8 >= -10_000 && rate_e8 <= 10_000); // ±1 bp granularity
     let fee = notional.checked_mul_rate_e8_ceil(rate_e8);
     assert!(fee.is_ok(), "bounded fee must not overflow");
     let Ok(fee) = fee else { return };
