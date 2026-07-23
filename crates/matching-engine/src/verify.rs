@@ -16,7 +16,7 @@
 use sim_core::ops::{Domain, OpTemplate, SubmitSpec};
 use sim_core::{
     EngineEvent, OrderKind, Price, Qty, Side, SymbolId, TimeInForce, VecSink,
-    instrument::Instrument, price::E8,
+    price::{Cash, E8},
 };
 
 use crate::book::Book;
@@ -237,42 +237,38 @@ fn k4_fok_atomicity() {
 /// the single fee-rounding rule stays within one e8 unit of the exact value,
 /// always rounding toward +∞ (adverse to the strategy).
 ///
-/// Style note: no `expect`/`unwrap`/`unreachable!` on values carrying
-/// runtime `String`s — Debug-formatting a symbolic-length string is an
-/// unbounded loop for CBMC. Failures are asserted on `is_ok()` (static
-/// message) and error branches return early.
-/// Domain note: fully symbolic tick/lot sizes make the i128 multiplications
-/// intractable for CBMC (128-bit non-linear bitvector arithmetic), so the
-/// instrument ranges over a **representative set** (BTC-perp-like,
-/// equity-like, penny-tick) while price, quantity and rate stay symbolic.
+/// Domain note: the harness deliberately does **not** build an
+/// [`sim_core::instrument::Instrument`] — that type carries a heap-allocated
+/// `String` name, and a runtime `String` on a proof path makes CBMC unwind
+/// `core::slice::memchr` unboundedly (the job never terminates). Instead the
+/// notional is computed inline from a representative tick·lot value exactly
+/// as `Instrument::notional` does (`ticks · lots · tick_lot_value_e8` in
+/// i128), keeping the proof allocation-free. The three values match the
+/// BTC-perp-like / equity-like / penny-tick instruments.
 /// The symbolic bounds are deliberately narrow (10-bit price/qty, ±10k rate):
 /// the rounding property is structural — every sign and remainder path is
 /// exercised at small magnitudes — and wide bit-widths only multiply SAT
-/// cost (a 30-minute CI timeout at the previous 24-bit bounds). Wide-range
-/// coverage is the proptest suite's job (P20); this proof nails the
-/// ceil-toward-+∞ arithmetic itself.
+/// cost. Wide-range coverage is the proptest suite's job (P20); this proof
+/// nails the ceil-toward-+∞ arithmetic itself.
 #[kani::proof]
-#[kani::unwind(64)]
+#[kani::unwind(4)]
 fn k5_fee_arithmetic_bounds() {
-    let (tick_size_e8, lot_size_e8) = match kani::any::<u8>() % 3 {
-        0 => (10_000_000, 100_000),    // tick 0.10, lot 0.001 (BTC-perp-like)
-        1 => (1_000_000, 100_000_000), // tick 0.01, lot 1.0 (equity-like)
-        _ => (100_000_000, 1_000_000), // tick 1.00, lot 0.01
+    // Quote currency per (tick·lot) at e8 scale, = tick_size_e8·lot_size_e8/1e8
+    // for each representative instrument.
+    let tick_lot_value_e8: i64 = match kani::any::<u8>() % 3 {
+        0 => 10_000,      // tick 0.10, lot 0.001 (BTC-perp-like)
+        1 => 1_000_000,   // tick 0.01, lot 1.0 (equity-like)
+        _ => 1_000_000,   // tick 1.00, lot 0.01 (penny-tick)
     };
-    let instrument = Instrument::new("K", SymbolId::new(0), tick_size_e8, lot_size_e8);
-    assert!(
-        instrument.is_ok(),
-        "representative instruments must construct"
-    );
-    let Ok(instrument) = instrument else { return };
 
     let ticks: i64 = kani::any();
     let lots: u64 = kani::any();
     kani::assume(ticks >= 1 && ticks <= 1023);
     kani::assume(lots >= 1 && lots <= 1023);
-    let notional = instrument.notional(Price::new(ticks), Qty::new(lots));
-    assert!(notional.is_ok(), "bounded notional must not overflow");
-    let Ok(notional) = notional else { return };
+    // notional = ticks · lots · tick_lot_value_e8 (i128), overflow-free at
+    // these bounds (< 1.1e15); this mirrors Instrument::notional exactly.
+    let notional_e8 = i128::from(ticks) * i128::from(lots) * i128::from(tick_lot_value_e8);
+    let notional = Cash::from_e8(notional_e8);
 
     let rate_e8: i128 = kani::any();
     kani::assume(rate_e8 >= -10_000 && rate_e8 <= 10_000); // ±1 bp granularity
