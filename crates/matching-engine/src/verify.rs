@@ -256,9 +256,9 @@ fn k5_fee_arithmetic_bounds() {
     // Quote currency per (tick·lot) at e8 scale, = tick_size_e8·lot_size_e8/1e8
     // for each representative instrument.
     let tick_lot_value_e8: i64 = match kani::any::<u8>() % 3 {
-        0 => 10_000,      // tick 0.10, lot 0.001 (BTC-perp-like)
-        1 => 1_000_000,   // tick 0.01, lot 1.0 (equity-like)
-        _ => 1_000_000,   // tick 1.00, lot 0.01 (penny-tick)
+        0 => 10_000,    // tick 0.10, lot 0.001 (BTC-perp-like)
+        1 => 1_000_000, // tick 0.01, lot 1.0 (equity-like)
+        _ => 1_000_000, // tick 1.00, lot 0.01 (penny-tick)
     };
 
     let ticks: i64 = kani::any();
